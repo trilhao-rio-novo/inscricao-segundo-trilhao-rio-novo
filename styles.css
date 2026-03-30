@@ -1,0 +1,109 @@
+/* Base and Utility classes tailored for simple HTML setup */
+
+.glass-panel {
+    background-color: rgba(24, 24, 27, 0.5); /* bg-zinc-900/50 */
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(63, 63, 70, 0.5); /* border-zinc-800/50 */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.input-field {
+    width: 100%;
+    background-color: #18181b; /* zinc-900 */
+    border: 1px solid #27272a; /* zinc-800 */
+    border-radius: 0.5rem;
+    padding-left: 3rem;
+    padding-right: 1rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    color: #f4f4f5; /* zinc-100 */
+    transition: all 0.2s;
+}
+
+.input-field::placeholder {
+    color: #71717a; /* zinc-500 */
+}
+
+.input-field:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.5); /* ring-accent/50 */
+    border-color: #f97316; /* border-accent */
+}
+
+.btn-primary {
+    background-color: #f97316; /* accent */
+    color: white;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.2);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background-color: #ea580c; /* accent-hover */
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background-color: #27272a; /* zinc-800 */
+    color: #d4d4d8; /* zinc-300 */
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background-color: #3f3f46; /* zinc-700 */
+    color: white;
+}
+
+/* Animations */
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.animation-delay-200 {
+    animation-delay: 0.2s;
+    opacity: 0; /* Ensures it stays hidden before animation starts */
+}
+
+.animation-delay-400 {
+    animation-delay: 0.4s;
+    opacity: 0;
+}
+
+@keyframes popIn {
+    0% { transform: scale(0.8); }
+    100% { transform: scale(1); }
+}
+
+.logo-pop {
+    animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s backwards;
+}
+
+.success-pop {
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
+}
