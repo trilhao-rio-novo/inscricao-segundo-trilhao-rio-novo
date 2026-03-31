@@ -90,6 +90,12 @@
                     </h2>
                     
                     <div class="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto ml-auto">
+                        
+                        <div class="relative w-full sm:w-64 shrink-0">
+                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"></i>
+                            <input type="text" id="search-input" onkeyup="loadData()" placeholder="Buscar nome ou CPF..." class="w-full bg-zinc-900 border border-zinc-800 text-sm focus:text-zinc-200 text-zinc-300 rounded-xl py-2.5 pl-9 pr-3 focus:ring-accent focus:border-accent outline-none hover:border-zinc-700 transition-all placeholder:text-zinc-600 shadow-sm">
+                        </div>
+
                         <div class="relative w-full sm:w-auto">
                             <i data-lucide="arrow-down-up" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"></i>
                             <select id="sort-select" onchange="loadData()" class="w-full bg-zinc-900 border border-zinc-800 text-sm font-medium text-zinc-300 rounded-xl py-2.5 pl-9 pr-8 focus:ring-accent focus:border-accent outline-none hover:border-zinc-700 transition-all cursor-pointer appearance-none shadow-sm">
@@ -188,11 +194,38 @@
             const tbody = document.getElementById('table-body');
             const emptyState = document.getElementById('empty-state');
             
-            document.getElementById('total-count').textContent = registrations.length;
+            // Wrap in array of {reg, originalIndex} to persist data bindings when sorted
+            let viewList = registrations.map((reg, index) => ({ reg, originalIndex: index }));
 
-            if (registrations.length === 0) {
+            // Apply Search Filtering
+            const searchInput = document.getElementById('search-input');
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            if (query) {
+                viewList = viewList.filter(({ reg }) => {
+                    return (reg.name && reg.name.toLowerCase().includes(query)) ||
+                           (reg.cpf && reg.cpf.toLowerCase().includes(query)) ||
+                           (reg.zecaName && reg.zecaName.toLowerCase().includes(query)) ||
+                           (reg.zecaCpf && reg.zecaCpf.toLowerCase().includes(query)) ||
+                           (reg.comboId && reg.comboId.toLowerCase().includes(query)); // fallback for legacy combos
+                });
+            }
+
+            document.getElementById('total-count').textContent = viewList.length;
+
+            if (viewList.length === 0) {
                 emptyState.classList.remove('hidden');
                 tbody.innerHTML = '';
+                // Update empty message contextually if searching vs no data natively
+                if (registrations.length > 0) {
+                    emptyState.querySelector('p.text-lg').textContent = 'Nenhum resultado encontrado.';
+                    emptyState.querySelector('p.text-sm').textContent = 'Tente pesquisar com outro termo ou limpe a busca.';
+                } else {
+                    emptyState.querySelector('p.text-lg').textContent = 'Nenhuma inscrição registrada neste navegador ainda.';
+                    emptyState.querySelector('p.text-sm').textContent = 'Os inscritos via "index.html" aparecerão aqui.';
+                }
+                
+                // Keep lucide icons loading
+                lucide.createIcons();
                 return;
             }
 
@@ -200,9 +233,6 @@
             tbody.innerHTML = '';
             
             const sortOption = document.getElementById('sort-select') ? document.getElementById('sort-select').value : 'date-desc';
-
-            // Wrap in array of {reg, originalIndex} to persist data bindings when sorted
-            let viewList = registrations.map((reg, index) => ({ reg, originalIndex: index }));
             
             viewList.sort((a, b) => {
                 if (sortOption === 'name-asc') {
@@ -259,7 +289,7 @@
                 if (isPaid && reg.paidDate) {
                     const pdObj = new Date(reg.paidDate);
                     const pdFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
-                    paidDateHtml = `<div class="text-[10px] text-green-500/70 mt-1.5 whitespace-nowrap">${pdFormatter.format(pdObj)}</div>`;
+                    paidDateHtml = `<div class="text-[10px] text-green-500/70 mt-1.5 whitespace-nowrap hidden sm:block">${pdFormatter.format(pdObj)}</div>`;
                 }
                 
                 const row = document.createElement('tr');
