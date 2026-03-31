@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBtn = document.getElementById('reset-btn');
 
     // MASK CPF: 000.000.000-00
-    cpfInput.addEventListener('input', (e) => {
+    function maskCpf(e) {
         let value = e.target.value.replace(/\D/g, ""); // Keep only numbers
         if (value.length > 11) value = value.slice(0, 11); // Limit strictly to 11 numbers
 
@@ -20,7 +20,10 @@ document.addEventListener('DOMContentLoaded', () => {
         value = value.replace(/(\d{3})(\d)/, "$1.$2");
         value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
         e.target.value = value;
-    });
+    }
+    cpfInput.addEventListener('input', maskCpf);
+    const zecaCpfInput = document.getElementById('zeca-cpf');
+    if (zecaCpfInput) zecaCpfInput.addEventListener('input', maskCpf);
 
     // FORM SUBMISSION
     form.addEventListener('submit', async (e) => {
@@ -31,10 +34,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const name = document.getElementById('name').value.trim();
         const cpf = cpfInput.value.replace(/\D/g, ""); // Clean string directly mapping to DB
+        const registrationType = document.querySelector('input[name="registration_type"]:checked').value;
+        const isCombo = registrationType === 'Piloto+Zeca';
+
+        const zecaName = isCombo ? document.getElementById('zeca-name').value.trim() : '';
+        const zecaCpf = isCombo ? zecaCpfInput.value.replace(/\D/g, "") : '';
 
         // Basic validation
-        if (name === '' || cpf.length !== 11) {
-            errorMessage.textContent = "Nome e CPF (11 dígitos) são obrigatórios.";
+        let valid = name !== '' && cpf.length === 11;
+        if (isCombo) {
+            valid = valid && zecaName !== '' && zecaCpf.length === 11;
+        }
+
+        if (!valid) {
+            errorMessage.textContent = isCombo ? "Preencha os nomes e CPFs (11 dígitos) corretamente." : "Nome e CPF (11 dígitos) são obrigatórios.";
             errorMessage.classList.remove('hidden');
             return;
         }
@@ -67,10 +80,27 @@ document.addEventListener('DOMContentLoaded', () => {
             // Simulating API call for now (Remove later when API is ready)
             await new Promise(r => setTimeout(r, 1500)); 
 
+            // Save to LocalStorage so the admin panel can view it immediately
+            const registrations = JSON.parse(localStorage.getItem('registrations') || '[]');
+            const dateStr = new Date().toISOString();
+            
+            if (isCombo) { // Add ONE single combined entry
+                registrations.push({ name: name, cpf: cpf, zecaName: zecaName, zecaCpf: zecaCpf, type: 'Combo', date: dateStr });
+            } else {
+                registrations.push({ name, cpf, type: registrationType, date: dateStr });
+            }
+            localStorage.setItem('registrations', JSON.stringify(registrations));
+
             // SUCCESS FLOW
             
+            // Set dynamic price on success message
+            let priceText = 'R$ 200';
+            if (isCombo) priceText = 'R$ 320';
+            
+            document.getElementById('success-price').textContent = priceText;
+
             // Animate transition between components
-            form.classList.add('hidden');
+            document.getElementById('registration-form').classList.add('hidden');
             successMessage.classList.remove('hidden');
             
         } catch (error) {

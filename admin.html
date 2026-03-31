@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin - 2º Trilhão Rio Novo</title>
+
+    <!-- Tailwind CSS Script -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        accent: '#f97316',
+                        'accent-hover': '#ea580c',
+                        zinc: {
+                            900: '#18181b',
+                            950: '#09090b',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body
+    class="bg-zinc-950 text-zinc-50 antialiased min-h-screen flex flex-col items-center py-10 px-4 relative overflow-x-hidden font-sans">
+
+    <!-- Background Decoration -->
+    <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/20 blur-[120px] rounded-full pointer-events-none"></div>
+
+    <main class="w-full max-w-5xl z-10 transition-all duration-500 ease-in-out">
+        
+        <!-- Header -->
+        <div class="text-center mb-10 fade-in-up">
+            <h1 class="text-3xl font-bold tracking-tight mb-2">Painel de Inscritos</h1>
+            <p class="text-zinc-400">Área restrita de administração</p>
+            <div class="mt-4">
+                <a href="index.html" class="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-accent transition-colors">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    Página Inicial
+                </a>
+            </div>
+        </div>
+
+        <!-- Login Container -->
+        <div id="login-container" class="glass-panel p-8 rounded-2xl max-w-sm mx-auto fade-in-up">
+            <div class="w-16 h-16 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl shadow-accent/10">
+                <i data-lucide="lock" class="text-accent w-8 h-8"></i>
+            </div>
+            <h2 class="text-xl font-bold mb-4 text-center">Acesso Restrito</h2>
+            <div class="space-y-4">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i data-lucide="key" class="h-5 w-5 text-zinc-500"></i>
+                    </div>
+                    <input type="password" id="admin-password" placeholder="Digite a senha (admin123)" class="input-field pl-12">
+                </div>
+                <button id="login-btn" class="btn-primary w-full py-3 flex items-center justify-center gap-2">
+                    Desbloquear <i data-lucide="unlock" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <p id="login-error" class="hidden text-red-500 bg-red-500/10 border border-red-500/50 rounded-lg p-2 text-sm mt-4 text-center">Senha incorreta.</p>
+        </div>
+
+        <!-- Dashboard Container (Hidden default) -->
+        <div id="dashboard-container" class="hidden fade-in-up mt-4">
+            <div class="glass-panel p-6 sm:p-8 rounded-2xl relative">
+                <!-- Status Top -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-zinc-800 gap-4">
+                    <h2 class="text-2xl font-bold flex items-center gap-3 shrink-0">
+                        <i data-lucide="users" class="w-6 h-6 text-accent"></i> 
+                        Lista de Ocupantes
+                    </h2>
+                    
+                    <div class="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto ml-auto">
+                        <div class="relative w-full sm:w-auto">
+                            <i data-lucide="arrow-down-up" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"></i>
+                            <select id="sort-select" onchange="loadData()" class="w-full bg-zinc-900 border border-zinc-800 text-sm font-medium text-zinc-300 rounded-xl py-2.5 pl-9 pr-8 focus:ring-accent focus:border-accent outline-none hover:border-zinc-700 transition-all cursor-pointer appearance-none shadow-sm">
+                                <option value="date-desc">Ordem: Mais Recentes</option>
+                                <option value="date-asc">Ordem: Mais Antigos</option>
+                                <option value="name-asc">Ordem: Nome (A-Z)</option>
+                                <option value="name-desc">Ordem: Nome (Z-A)</option>
+                            </select>
+                            <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"></i>
+                        </div>
+
+                        <div class="bg-zinc-900 border border-zinc-800 py-2 px-4 rounded-xl flex items-center justify-between sm:justify-center w-full sm:w-auto gap-3 shrink-0 shadow-sm">
+                            <span class="text-zinc-400 text-sm font-medium">Inscrições:</span>
+                            <span id="total-count" class="text-accent font-black text-xl bg-accent/10 px-3 py-0.5 rounded-lg border border-accent/20">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Table -->
+                <div class="overflow-x-auto rounded-xl border border-zinc-800 relative bg-zinc-900/40">
+                    <table class="w-full text-sm text-left text-zinc-300">
+                        <thead class="text-xs text-zinc-400 uppercase bg-zinc-800/80">
+                            <tr>
+                                <th scope="col" class="px-6 py-4 font-bold flex items-center gap-2">
+                                    <i data-lucide="user" class="w-4 h-4"></i> Nome
+                                </th>
+                                <th scope="col" class="px-6 py-4 font-bold">
+                                    <i data-lucide="file-text" class="w-4 h-4 inline mr-1"></i> CPF
+                                </th>
+                                <th scope="col" class="px-6 py-4 font-bold">
+                                    <i data-lucide="tag" class="w-4 h-4 inline mr-1"></i> Tipo
+                                </th>
+                                <th scope="col" class="px-6 py-4 font-bold">
+                                    <i data-lucide="coins" class="w-4 h-4 inline mr-1"></i> Valor
+                                </th>
+                                <th scope="col" class="px-6 py-4 font-bold text-center">
+                                    <i data-lucide="badge-dollar-sign" class="w-4 h-4 inline mr-1"></i> Pagamento
+                                </th>
+                                <th scope="col" class="px-6 py-4 font-bold border-l border-zinc-700/50">
+                                    <i data-lucide="calendar-clock" class="w-4 h-4 inline mr-1"></i> Data
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="divide-y divide-zinc-800/50">
+                            <!-- JS vai preencher aqui -->
+                        </tbody>
+                    </table>
+
+                    <div id="empty-state" class="hidden text-center py-16 text-zinc-500">
+                        <i data-lucide="inbox" class="w-16 h-16 mx-auto mb-4 opacity-30"></i>
+                        <p class="text-lg">Nenhuma inscrição registrada neste navegador ainda.</p>
+                        <p class="text-sm mt-2 opacity-60">Os inscritos via "index.html" aparecerão aqui.</p>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end shadow-xl">
+                    <button class="btn-secondary text-sm flex items-center gap-2 py-2 px-4 border-accent/20 bg-accent/10 hover:bg-accent/20 hover:text-white transition-all group" onclick="exportPDF()">
+                        <i data-lucide="file-down" class="w-4 h-4 group-hover:scale-110 transition-transform"></i> Exportar PDF
+                    </button>
+                    <button class="ml-4 btn-secondary text-sm flex items-center gap-2 bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/30 hover:text-red-400 border py-2 px-4 shadow-none" onclick="clearData()">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> Limpar Dados
+                    </button>
+                </div>
+            </div>
+            
+            <p class="text-center mt-12 text-sm text-zinc-600">
+                © 2026 Trilhão Rio Novo - Todos os direitos reservados
+            </p>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        // Login Logic
+        document.getElementById('login-btn').addEventListener('click', () => {
+            const password = document.getElementById('admin-password').value;
+            if (password === 'admin123') { // Senha simples
+                document.getElementById('login-container').classList.add('hidden');
+                document.getElementById('dashboard-container').classList.remove('hidden');
+                loadData();
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+                setTimeout(() => document.getElementById('login-error').classList.add('hidden'), 3000);
+            }
+        });
+
+        // Enter key to login
+        document.getElementById('admin-password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') document.getElementById('login-btn').click();
+        });
+
+        // Render Table Data
+        function loadData() {
+            const registrations = JSON.parse(localStorage.getItem('registrations') || '[]');
+            const tbody = document.getElementById('table-body');
+            const emptyState = document.getElementById('empty-state');
+            
+            document.getElementById('total-count').textContent = registrations.length;
+
+            if (registrations.length === 0) {
+                emptyState.classList.remove('hidden');
+                tbody.innerHTML = '';
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            tbody.innerHTML = '';
+            
+            const sortOption = document.getElementById('sort-select') ? document.getElementById('sort-select').value : 'date-desc';
+
+            // Wrap in array of {reg, originalIndex} to persist data bindings when sorted
+            let viewList = registrations.map((reg, index) => ({ reg, originalIndex: index }));
+            
+            viewList.sort((a, b) => {
+                if (sortOption === 'name-asc') {
+                    return a.reg.name.localeCompare(b.reg.name);
+                } else if (sortOption === 'name-desc') {
+                    return b.reg.name.localeCompare(a.reg.name);
+                } else if (sortOption === 'date-asc') {
+                    return new Date(a.reg.date) - new Date(b.reg.date);
+                } else {
+                    // date-desc
+                    return new Date(b.reg.date) - new Date(a.reg.date);
+                }
+            });
+
+            // Render based on selected sorting
+            viewList.forEach(({ reg, originalIndex }) => {
+                const dateObj = new Date(reg.date);
+                const formatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const dateStr = formatter.format(dateObj);
+
+                const typeText = reg.type || 'Padrão';
+                
+                let typeStyle = 'text-accent border-accent/20 bg-accent/10';
+                let priceValue = 'R$ 200';
+                let displayedName = reg.name;
+                let displayedCpf = reg.cpf;
+                
+                if (typeText === 'Zeca') {
+                    typeStyle = 'text-blue-400 border-blue-400/20 bg-blue-400/10';
+                    priceValue = 'R$ 120';
+                } else if (typeText === 'Combo') {
+                    typeStyle = 'text-purple-400 border-purple-400/20 bg-purple-400/10';
+                    priceValue = 'R$ 320';
+                    displayedName = `
+                        <div class="flex flex-col gap-1 min-w-max">
+                            <span class="flex items-center gap-1.5 text-zinc-200"><i data-lucide="car-front" class="w-3.5 h-3.5 text-accent opacity-80"></i> ${reg.name}</span>
+                            <span class="flex items-center gap-1.5 text-zinc-400 text-xs mt-1.5"><i data-lucide="user" class="w-3.5 h-3.5 text-blue-400 opacity-80"></i> ${reg.zecaName}</span>
+                        </div>
+                    `;
+                    displayedCpf = `
+                        <div class="flex flex-col gap-1 min-w-max">
+                            <span class="text-zinc-300 font-mono">${reg.cpf}</span>
+                            <span class="text-zinc-500 font-mono text-xs mt-1.5">${reg.zecaCpf}</span>
+                        </div>
+                    `;
+                }
+
+                const isPaid = reg.paid === true;
+                const paidText = isPaid ? 'Pago' : 'Pendente';
+                const paidBtnClass = isPaid ? 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20 hover:text-red-300';
+                const paidIcon = isPaid ? 'check-circle' : 'circle';
+                
+                let paidDateHtml = '';
+                if (isPaid && reg.paidDate) {
+                    const pdObj = new Date(reg.paidDate);
+                    const pdFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    paidDateHtml = `<div class="text-[10px] text-green-500/70 mt-1.5 whitespace-nowrap">${pdFormatter.format(pdObj)}</div>`;
+                }
+                
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-zinc-800/30 transition-colors group';
+                row.innerHTML = `
+                    <td class="px-6 py-4 font-medium text-white group-hover:text-accent transition-colors whitespace-nowrap">
+                        ${displayedName}
+                    </td>
+                    <td class="px-6 py-4 text-zinc-300 font-mono text-sm">${displayedCpf}</td>
+                    <td class="px-6 py-4"><span class="px-2.5 py-1 text-xs font-bold rounded-lg border ${typeStyle} whitespace-nowrap">${typeText}</span></td>
+                    <td class="px-6 py-4 text-zinc-300 font-medium whitespace-nowrap">${priceValue}</td>
+                    <td class="px-6 py-4 text-center">
+                        <div class="flex flex-col items-center justify-center">
+                            <button onclick="togglePayment(${originalIndex})" class="px-3 py-1 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 ${paidBtnClass}">
+                                <i data-lucide="${paidIcon}" class="w-3.5 h-3.5"></i> ${paidText}
+                            </button>
+                            ${paidDateHtml}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-zinc-500 text-xs border-l border-zinc-700/50">${dateStr}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // Renderizar icones Lucide criados dinamicamente
+            lucide.createIcons();
+        }
+
+        // Action: Toggle Payment
+        function togglePayment(index) {
+            const registrations = JSON.parse(localStorage.getItem('registrations') || '[]');
+            if (registrations[index]) {
+                registrations[index].paid = !registrations[index].paid;
+                if (registrations[index].paid) {
+                    registrations[index].paidDate = new Date().toISOString();
+                } else {
+                    delete registrations[index].paidDate;
+                }
+                localStorage.setItem('registrations', JSON.stringify(registrations));
+                loadData();
+            }
+        }
+
+        // PDF Export Helper
+        function exportPDF() {
+            const registrations = JSON.parse(localStorage.getItem('registrations') || '[]');
+            if (registrations.length === 0) return alert('Nenhum dado para exportar.');
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('landscape');
+            
+            doc.setFontSize(16);
+            doc.text("Relatorio de Inscritos - 2o Trilhao Rio Novo", 14, 15);
+            doc.setFontSize(10);
+            doc.text(`Total de inscricoes registradas: ${registrations.length}`, 14, 22);
+            
+            const tableColumn = ["Inscrito(s)", "CPF", "Tipo", "Valor", "Status Pagamento", "Data"];
+            const tableRows = [];
+
+            registrations.forEach(reg => {
+                const typeText = reg.type || 'Padrão';
+                let priceValue = '120';
+                if(typeText === 'Piloto') priceValue = '200';
+                if(typeText === 'Combo') priceValue = '320';
+
+                const nameField = typeText === 'Combo' ? `${reg.name} (Pil.)\n${reg.zecaName} (Zeca)` : reg.name;
+                const cpfField = typeText === 'Combo' ? `${reg.cpf}\n${reg.zecaCpf}` : reg.cpf;
+                
+                const paidStatus = reg.paid ? `PAGO\n(${new Date(reg.paidDate).toLocaleDateString()})` : 'Pendente';
+                const dateStr = new Date(reg.date).toLocaleString('pt-BR');
+                
+                tableRows.push([nameField, cpfField, typeText, `R$ ${priceValue}`, paidStatus, dateStr]);
+            });
+
+            doc.autoTable({
+                head: [tableColumn],
+                body: tableRows,
+                startY: 28,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
+                headStyles: { fillColor: [249, 115, 22] } // accent orange
+            });
+
+            doc.save("inscricoes_trilhao.pdf");
+        }
+
+        // Limpar Dados Helper
+        function clearData() {
+            if(confirm('Tem certeza que deseja apagar todas as inscrições deste navegador? Em modo local, essa ação não pode ser desfeita.')) {
+                localStorage.removeItem('registrations');
+                loadData();
+            }
+        }
+    </script>
+</body>
+</html>
