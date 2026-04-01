@@ -155,9 +155,6 @@
                     <button class="btn-secondary text-sm flex items-center gap-2 py-2 px-4 border-accent/20 bg-accent/10 hover:bg-accent/20 hover:text-white transition-all group" onclick="exportPDF()">
                         <i data-lucide="file-down" class="w-4 h-4 group-hover:scale-110 transition-transform"></i> Exportar PDF
                     </button>
-                    <button class="ml-4 btn-secondary text-sm flex items-center gap-2 bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/30 hover:text-red-400 border py-2 px-4 shadow-none" onclick="clearData()">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i> Limpar Dados
-                    </button>
                 </div>
             </div>
             
@@ -169,17 +166,21 @@
 
     <script>
         lucide.createIcons();
+        window.apiURL = 'https://api-trilhao-rionovo.onrender.com/api';
 
         // Login Logic
         document.getElementById('login-btn').addEventListener('click', () => {
             const password = document.getElementById('admin-password').value;
-            if (password === 'admin123') { // Senha simples
+            if (password !== '') { 
+                window.adminKey = password;
                 document.getElementById('login-container').classList.add('hidden');
                 document.getElementById('dashboard-container').classList.remove('hidden');
                 loadData();
             } else {
-                document.getElementById('login-error').classList.remove('hidden');
-                setTimeout(() => document.getElementById('login-error').classList.add('hidden'), 3000);
+                const errEl = document.getElementById('login-error');
+                errEl.textContent = 'Digite uma senha para se conectar ao banco.';
+                errEl.classList.remove('hidden');
+                setTimeout(() => errEl.classList.add('hidden'), 3000);
             }
         });
 
@@ -189,13 +190,33 @@
         });
 
         // Render Table Data
-        function loadData() {
-            const registrations = JSON.parse(localStorage.getItem('registrations') || '[]');
+        async function loadData() {
             const tbody = document.getElementById('table-body');
             const emptyState = document.getElementById('empty-state');
+            let registrations = [];
             
-            // Wrap in array of {reg, originalIndex} to persist data bindings when sorted
-            let viewList = registrations.map((reg, index) => ({ reg, originalIndex: index }));
+            try {
+                const res = await fetch(`${window.apiURL}/registrations`, {
+                    headers: { 'x-api-key': window.adminKey }
+                });
+                if (!res.ok) {
+                    if (res.status === 403) {
+                        alert('Senha incorreta! Acesso negado pela nuvem.');
+                        location.reload();
+                    }
+                    throw new Error('Falha ao buscar dados');
+                }
+                registrations = await res.json();
+            } catch (err) {
+                console.error(err);
+                emptyState.querySelector('p.text-lg').textContent = 'Erro ao conectar no banco do Render.';
+                emptyState.querySelector('p.text-sm').textContent = 'Se a API hibernou, espere 50s e tente de novo.';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            // Wrap in array for rendering loop
+            let viewList = registrations.map((reg) => ({ reg }));
 
             // Apply Search Filtering
             const searchInput = document.getElementById('search-input');
@@ -204,9 +225,8 @@
                 viewList = viewList.filter(({ reg }) => {
                     return (reg.name && reg.name.toLowerCase().includes(query)) ||
                            (reg.cpf && reg.cpf.toLowerCase().includes(query)) ||
-                           (reg.zecaName && reg.zecaName.toLowerCase().includes(query)) ||
-                           (reg.zecaCpf && reg.zecaCpf.toLowerCase().includes(query)) ||
-                           (reg.comboId && reg.comboId.toLowerCase().includes(query)); // fallback for legacy combos
+                           (reg.zeca_name && reg.zeca_name.toLowerCase().includes(query)) ||
+                           (reg.zeca_cpf && reg.zeca_cpf.toLowerCase().includes(query));
                 });
             }
 
@@ -217,14 +237,12 @@
                 tbody.innerHTML = '';
                 // Update empty message contextually if searching vs no data natively
                 if (registrations.length > 0) {
-                    emptyState.querySelector('p.text-lg').textContent = 'Nenhum resultado encontrado.';
-                    emptyState.querySelector('p.text-sm').textContent = 'Tente pesquisar com outro termo ou limpe a busca.';
+                    emptyState.querySelector('p.text-lg').textContent = 'Nenhum resultado encontrado na busca.';
+                    emptyState.querySelector('p.text-sm').textContent = 'Tente pesquisar com outro termo ou limpe a lupa.';
                 } else {
-                    emptyState.querySelector('p.text-lg').textContent = 'Nenhuma inscrição registrada neste navegador ainda.';
-                    emptyState.querySelector('p.text-sm').textContent = 'Os inscritos via "index.html" aparecerão aqui.';
+                    emptyState.querySelector('p.text-lg').textContent = 'Nenhuma inscrição registrada no banco ainda.';
+                    emptyState.querySelector('p.text-sm').textContent = 'As novas inscrições preenchidas no formulário vão aparecer aqui magicamente.';
                 }
-                
-                // Keep lucide icons loading
                 lucide.createIcons();
                 return;
             }
@@ -235,21 +253,23 @@
             const sortOption = document.getElementById('sort-select') ? document.getElementById('sort-select').value : 'date-desc';
             
             viewList.sort((a, b) => {
+                const dateA = new Date(a.reg.created_at).getTime();
+                const dateB = new Date(b.reg.created_at).getTime();
                 if (sortOption === 'name-asc') {
                     return a.reg.name.localeCompare(b.reg.name);
                 } else if (sortOption === 'name-desc') {
                     return b.reg.name.localeCompare(a.reg.name);
                 } else if (sortOption === 'date-asc') {
-                    return new Date(a.reg.date) - new Date(b.reg.date);
+                    return dateA - dateB;
                 } else {
                     // date-desc
-                    return new Date(b.reg.date) - new Date(a.reg.date);
+                    return dateB - dateA;
                 }
             });
 
             // Render based on selected sorting
-            viewList.forEach(({ reg, originalIndex }) => {
-                const dateObj = new Date(reg.date);
+            viewList.forEach(({ reg }) => {
+                const dateObj = new Date(reg.created_at);
                 const formatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 const dateStr = formatter.format(dateObj);
 
@@ -269,13 +289,13 @@
                     displayedName = `
                         <div class="flex flex-col gap-1 min-w-max">
                             <span class="flex items-center gap-1.5 text-zinc-200"><i data-lucide="car-front" class="w-3.5 h-3.5 text-accent opacity-80"></i> ${reg.name}</span>
-                            <span class="flex items-center gap-1.5 text-zinc-400 text-xs mt-1.5"><i data-lucide="user" class="w-3.5 h-3.5 text-blue-400 opacity-80"></i> ${reg.zecaName}</span>
+                            <span class="flex items-center gap-1.5 text-zinc-400 text-xs mt-1.5"><i data-lucide="user" class="w-3.5 h-3.5 text-blue-400 opacity-80"></i> ${reg.zeca_name}</span>
                         </div>
                     `;
                     displayedCpf = `
                         <div class="flex flex-col gap-1 min-w-max">
                             <span class="text-zinc-300 font-mono">${reg.cpf}</span>
-                            <span class="text-zinc-500 font-mono text-xs mt-1.5">${reg.zecaCpf}</span>
+                            <span class="text-zinc-500 font-mono text-xs mt-1.5">${reg.zeca_cpf}</span>
                         </div>
                     `;
                 }
@@ -286,8 +306,8 @@
                 const paidIcon = isPaid ? 'check-circle' : 'circle';
                 
                 let paidDateHtml = '';
-                if (isPaid && reg.paidDate) {
-                    const pdObj = new Date(reg.paidDate);
+                if (isPaid && reg.paid_date) {
+                    const pdObj = new Date(reg.paid_date);
                     const pdFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
                     paidDateHtml = `<div class="text-[10px] text-green-500/70 mt-1.5 whitespace-nowrap hidden sm:block">${pdFormatter.format(pdObj)}</div>`;
                 }
@@ -303,7 +323,7 @@
                     <td class="px-6 py-4 text-zinc-300 font-medium whitespace-nowrap">${priceValue}</td>
                     <td class="px-6 py-4 text-center">
                         <div class="flex flex-col items-center justify-center">
-                            <button onclick="togglePayment(${originalIndex})" class="px-3 py-1 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 ${paidBtnClass}">
+                            <button onclick="togglePayment(${reg.id}, ${isPaid})" class="px-3 py-1 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 ${paidBtnClass}">
                                 <i data-lucide="${paidIcon}" class="w-3.5 h-3.5"></i> ${paidText}
                             </button>
                             ${paidDateHtml}
@@ -319,24 +339,38 @@
         }
 
         // Action: Toggle Payment
-        function togglePayment(index) {
-            const registrations = JSON.parse(localStorage.getItem('registrations') || '[]');
-            if (registrations[index]) {
-                registrations[index].paid = !registrations[index].paid;
-                if (registrations[index].paid) {
-                    registrations[index].paidDate = new Date().toISOString();
+        async function togglePayment(id, currentStatus) {
+            try {
+                const response = await fetch(`${window.apiURL}/registrations/${id}/payment`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': window.adminKey
+                    },
+                    body: JSON.stringify({ paid: !currentStatus })
+                });
+                
+                if (response.ok) {
+                    loadData();
                 } else {
-                    delete registrations[index].paidDate;
+                    alert('Erro ao atualizar. Você possui privilégios de administrador?');
                 }
-                localStorage.setItem('registrations', JSON.stringify(registrations));
-                loadData();
+            } catch(e) {
+                alert('Falha na requisição para o Render.');
             }
         }
 
         // PDF Export Helper
-        function exportPDF() {
-            const registrations = JSON.parse(localStorage.getItem('registrations') || '[]');
-            if (registrations.length === 0) return alert('Nenhum dado para exportar.');
+        async function exportPDF() {
+            let registrations = [];
+            try {
+                const res = await fetch(`${window.apiURL}/registrations`, {
+                    headers: { 'x-api-key': window.adminKey }
+                });
+                if(res.ok) registrations = await res.json();
+            } catch(e) { return alert('Falha ao exportar da nuvem.'); }
+
+            if (registrations.length === 0) return alert('Nenhum dado cadastrado na nuvem para gerar PDF.');
             
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('landscape');
@@ -355,11 +389,11 @@
                 if(typeText === 'Piloto') priceValue = '200';
                 if(typeText === 'Combo') priceValue = '320';
 
-                const nameField = typeText === 'Combo' ? `${reg.name} (Pil.)\n${reg.zecaName} (Zeca)` : reg.name;
-                const cpfField = typeText === 'Combo' ? `${reg.cpf}\n${reg.zecaCpf}` : reg.cpf;
+                const nameField = typeText === 'Combo' ? `${reg.name} (Pil.)\n${reg.zeca_name} (Zeca)` : reg.name;
+                const cpfField = typeText === 'Combo' ? `${reg.cpf}\n${reg.zeca_cpf}` : reg.cpf;
                 
-                const paidStatus = reg.paid ? `PAGO\n(${new Date(reg.paidDate).toLocaleDateString()})` : 'Pendente';
-                const dateStr = new Date(reg.date).toLocaleString('pt-BR');
+                const paidStatus = reg.paid ? `PAGO\n(${new Date(reg.paid_date).toLocaleDateString('pt-BR')})` : 'Pendente';
+                const dateStr = new Date(reg.created_at).toLocaleString('pt-BR');
                 
                 tableRows.push([nameField, cpfField, typeText, `R$ ${priceValue}`, paidStatus, dateStr]);
             });
@@ -374,14 +408,6 @@
             });
 
             doc.save("inscricoes_trilhao.pdf");
-        }
-
-        // Limpar Dados Helper
-        function clearData() {
-            if(confirm('Tem certeza que deseja apagar todas as inscrições deste navegador? Em modo local, essa ação não pode ser desfeita.')) {
-                localStorage.removeItem('registrations');
-                loadData();
-            }
         }
     </script>
 </body>

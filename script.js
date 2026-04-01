@@ -60,36 +60,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // =========================================================
-            //  AQUI É ONDE VOCÊ CONECTA COM O GOOGLE SHEETS API (Fetch)
+            //  AQUI ESTÁ A INTEGRAÇÃO COM A API DO RENDER
             // =========================================================
-            /* 
-               Exemplo de POST num Google Apps Script (Web App):
-               
-               const URL_DA_SUA_API = "https://script.google.com/macros/s/SUA_CHAVE_AQUI/exec";
-               
-               await fetch(URL_DA_SUA_API, {
-                   method: 'POST',
-                   mode: 'no-cors',
-                   headers: {
-                       'Content-Type': 'application/json'
-                   },
-                   body: JSON.stringify({ name: name, cpf: cpf, date: new Date().toISOString() })
-               });
-            */
-            
-            // Simulating API call for now (Remove later when API is ready)
-            await new Promise(r => setTimeout(r, 1500)); 
+            const API_URL = 'https://api-trilhao-rionovo.onrender.com/api';
+            const payload = {
+                name: name,
+                cpf: cpf.replace(/\D/g, ''),
+                type: isCombo ? 'Combo' : 'Piloto',
+                zecaName: isCombo ? zecaName : null,
+                zecaCpf: isCombo ? zecaCpf.replace(/\D/g, '') : null
+            };
 
-            // Save to LocalStorage so the admin panel can view it immediately
-            const registrations = JSON.parse(localStorage.getItem('registrations') || '[]');
-            const dateStr = new Date().toISOString();
-            
-            if (isCombo) { // Add ONE single combined entry
-                registrations.push({ name: name, cpf: cpf, zecaName: zecaName, zecaCpf: zecaCpf, type: 'Combo', date: dateStr });
-            } else {
-                registrations.push({ name, cpf, type: registrationType, date: dateStr });
+            const response = await fetch(`${API_URL}/registrations`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                if (response.status === 409) {
+                    throw new Error('Este CPF principal já está registrado no banco de dados!');
+                }
+                throw new Error(errorData.error || 'Erro desconhecido ao cadastrar na nuvem.');
             }
-            localStorage.setItem('registrations', JSON.stringify(registrations));
 
             // SUCCESS FLOW
             
@@ -104,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
             successMessage.classList.remove('hidden');
             
         } catch (error) {
-            errorMessage.textContent = "Ocorreu um erro ao enviar. Tente novamente.";
+            errorMessage.textContent = error.message || "Ocorreu um erro ao enviar. Tente novamente.";
             errorMessage.classList.remove('hidden');
         } finally {
             // Restore button state
