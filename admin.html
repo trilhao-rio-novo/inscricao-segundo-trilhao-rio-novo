@@ -68,15 +68,25 @@
             <div class="space-y-4">
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i data-lucide="user" class="h-5 w-5 text-zinc-500"></i>
+                    </div>
+                    <input type="text" id="admin-username" placeholder="Usuário" class="input-field pl-12 mb-4">
+                </div>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <i data-lucide="key" class="h-5 w-5 text-zinc-500"></i>
                     </div>
-                    <input type="password" id="admin-password" placeholder="Digite a senha (admin123)" class="input-field pl-12">
+                    <input type="password" id="admin-password" placeholder="Senha" class="input-field pl-12">
                 </div>
                 <button id="login-btn" class="btn-primary w-full py-3 flex items-center justify-center gap-2">
                     Desbloquear <i data-lucide="unlock" class="w-4 h-4"></i>
                 </button>
+                <button id="setup-btn" class="hidden btn-secondary w-full py-3 flex items-center justify-center gap-2 border-accent/20 bg-accent/10 hover:bg-accent/20 hover:text-white transition-all">
+                    Criar meu Administrador <i data-lucide="user-plus" class="w-4 h-4"></i>
+                </button>
             </div>
-            <p id="login-error" class="hidden text-red-500 bg-red-500/10 border border-red-500/50 rounded-lg p-2 text-sm mt-4 text-center">Senha incorreta.</p>
+            <p id="login-error" class="hidden text-red-500 bg-red-500/10 border border-red-500/50 rounded-lg p-2 text-sm mt-4 text-center">Credenciais incorretas.</p>
+            <p id="setup-msg" class="hidden text-green-500 bg-green-500/10 border border-green-500/50 rounded-lg p-2 text-sm mt-4 text-center">Usuário criado com sucesso! Faça login.</p>
         </div>
 
         <!-- Dashboard Container (Hidden default) -->
@@ -168,25 +178,100 @@
         lucide.createIcons();
         window.apiURL = 'https://api-trilhao-rionovo.onrender.com/api';
 
-        // Login Logic
-        document.getElementById('login-btn').addEventListener('click', () => {
+        let needsSetup = false;
+        
+        // Verifica se precisa de setup
+        async function checkSetup() {
+            try {
+                const res = await fetch(`${window.apiURL}/check-setup`);
+                const data = await res.json();
+                if (data.needsSetup) {
+                    needsSetup = true;
+                    document.getElementById('login-btn').classList.add('hidden');
+                    document.getElementById('setup-btn').classList.remove('hidden');
+                    document.querySelector('#login-container h2').textContent = 'Configuração Inicial';
+                }
+            } catch (err) {
+                console.error("Erro ao checar setup", err);
+            }
+        }
+        checkSetup();
+
+        function showError(msg) {
+            const errEl = document.getElementById('login-error');
+            errEl.textContent = msg;
+            errEl.classList.remove('hidden');
+            setTimeout(() => errEl.classList.add('hidden'), 3500);
+        }
+
+        // Setup Logic
+        document.getElementById('setup-btn').addEventListener('click', async () => {
+            const username = document.getElementById('admin-username').value;
             const password = document.getElementById('admin-password').value;
-            if (password !== '') { 
-                window.adminKey = password;
-                document.getElementById('login-container').classList.add('hidden');
-                document.getElementById('dashboard-container').classList.remove('hidden');
-                loadData();
+            if (username && password) {
+                try {
+                    const res = await fetch(`${window.apiURL}/setup`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+                    if (res.ok) {
+                        document.getElementById('setup-msg').classList.remove('hidden');
+                        document.getElementById('login-btn').classList.remove('hidden');
+                        document.getElementById('setup-btn').classList.add('hidden');
+                        document.querySelector('#login-container h2').textContent = 'Acesso Restrito';
+                        document.getElementById('admin-password').value = '';
+                    } else {
+                        const err = await res.json();
+                        showError(err.error || 'Erro ao criar usuário');
+                    }
+                } catch(e) {
+                    showError('Falha ao conectar com a API.');
+                }
             } else {
-                const errEl = document.getElementById('login-error');
-                errEl.textContent = 'Digite uma senha para se conectar ao banco.';
-                errEl.classList.remove('hidden');
-                setTimeout(() => errEl.classList.add('hidden'), 3000);
+                showError('As credenciais são obrigatórias.');
+            }
+        });
+
+        // Login Logic
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            const username = document.getElementById('admin-username').value;
+            const password = document.getElementById('admin-password').value;
+            
+            if (username !== '' && password !== '') { 
+                try {
+                    const res = await fetch(`${window.apiURL}/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        window.authToken = data.token; // Guarda o JWT
+                        document.getElementById('login-container').classList.add('hidden');
+                        document.getElementById('dashboard-container').classList.remove('hidden');
+                        loadData();
+                    } else {
+                        showError('Usuário ou senha inválidos.');
+                    }
+                } catch(e) {
+                    showError('Não conseguimos alcançar o servidor.');
+                }
+            } else {
+                showError('Usuário e senha são necessários.');
             }
         });
 
         // Enter key to login
         document.getElementById('admin-password').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') document.getElementById('login-btn').click();
+            if (e.key === 'Enter') {
+                if (needsSetup && !document.getElementById('setup-btn').classList.contains('hidden')) {
+                    document.getElementById('setup-btn').click();
+                } else {
+                    document.getElementById('login-btn').click();
+                }
+            }
         });
 
         // Render Table Data
@@ -197,7 +282,7 @@
             
             try {
                 const res = await fetch(`${window.apiURL}/registrations`, {
-                    headers: { 'x-api-key': window.adminKey }
+                    headers: { 'Authorization': 'Bearer ' + window.authToken }
                 });
                 if (!res.ok) {
                     if (res.status === 403) {
@@ -345,7 +430,7 @@
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-api-key': window.adminKey
+                        'Authorization': 'Bearer ' + window.authToken
                     },
                     body: JSON.stringify({ paid: !currentStatus })
                 });
@@ -365,7 +450,7 @@
             let registrations = [];
             try {
                 const res = await fetch(`${window.apiURL}/registrations`, {
-                    headers: { 'x-api-key': window.adminKey }
+                    headers: { 'Authorization': 'Bearer ' + window.authToken }
                 });
                 if(res.ok) registrations = await res.json();
             } catch(e) { return alert('Falha ao exportar da nuvem.'); }

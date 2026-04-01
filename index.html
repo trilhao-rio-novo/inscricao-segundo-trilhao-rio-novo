@@ -49,10 +49,12 @@
     </div>
 
     <!-- Main Container -->
-    <main class="w-full max-w-md z-10 transition-all duration-500 ease-in-out" id="main-container">
+    <main class="w-full max-w-md lg:max-w-5xl z-10 transition-all duration-500 ease-in-out" id="main-container">
+
+        <div class="flex flex-col lg:grid lg:grid-cols-2 lg:gap-x-16 lg:items-start w-full relative">
 
         <!-- Header Section -->
-        <div class="text-center mb-10 fade-in-up">
+        <div class="text-center mb-10 fade-in-up lg:col-start-1 lg:row-start-1">
             <!-- Hero Banner Image -->
             <div
                 class="relative w-full max-w-sm mx-auto rounded-3xl overflow-hidden mb-6 shadow-2xl shadow-accent/20 border border-zinc-800 logo-pop group bg-zinc-900">
@@ -76,7 +78,7 @@
         </div>
 
         <!-- Event Details Section -->
-        <div class="space-y-4 mb-8 fade-in-up animation-delay-100">
+        <div class="space-y-4 mb-8 fade-in-up animation-delay-100 lg:col-start-1 lg:row-start-2">
             <!-- Intro Text -->
             <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
                 <div class="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent"></div>
@@ -132,8 +134,11 @@
             </div>
         </div>
 
+        <!-- MÁGICA DO DESKTOP: Envolvemos o Form e o Pix no lado Direito descendo junto com o scroll -->
+        <div class="flex flex-col w-full lg:col-start-2 lg:row-start-1 lg:row-span-4 lg:sticky lg:top-8 z-20">
+
         <!-- Section Title for Form -->
-        <div class="mb-6 mt-12 text-center fade-in-up animation-delay-200">
+        <div class="mb-6 mt-12 lg:mt-0 text-center fade-in-up animation-delay-200">
             <h2 class="text-3xl font-black text-white mb-2 uppercase tracking-tight flex items-center justify-center gap-2">
                 <i data-lucide="edit-3" class="w-6 h-6 text-accent"></i>
                 Inscreva-se<span class="text-accent">.</span>
@@ -322,9 +327,11 @@
                 </div>
             </div>
         </div>
+        
+        </div> <!-- Fechamento da Coluna Direita (Formulário e Pix) -->
 
         <!-- Location Section -->
-        <div class="mt-10 fade-in-up animation-delay-300">
+        <div class="mt-10 lg:mt-0 fade-in-up animation-delay-300 lg:col-start-1 lg:row-start-3">
             <div class="flex items-center justify-center gap-2 mb-4">
                 <div class="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
                     <i data-lucide="map-pin" class="text-accent w-4 h-4"></i>
@@ -351,7 +358,7 @@
         </div>
 
         <!-- Socials Section -->
-        <div class="mt-6 space-y-4 fade-in-up animation-delay-400">
+        <div class="mt-6 lg:mt-8 space-y-4 fade-in-up animation-delay-400 lg:col-start-1 lg:row-start-4">
             <!-- WhatsApp -->
             <a href="https://chat.whatsapp.com/CdyKRd3gQLy211kkm5eY9Y?mode=gi_t" target="_blank"
                 rel="noopener noreferrer"
@@ -399,9 +406,10 @@
             </a>
         </div>
 
+        </div> <!-- Fechamento do Grid Flex Desktop -->
+
         <!-- Footer info -->
-        <!-- Footer info -->
-        <div class="text-center mt-12 mb-8 fade-in-up animation-delay-500">
+        <div class="text-center mt-12 mb-8 fade-in-up animation-delay-500 w-full">
             <p class="text-sm text-zinc-600 mb-4">
                 © 2026 Trilhão Rio Novo - Todos os direitos reservados
             </p>
