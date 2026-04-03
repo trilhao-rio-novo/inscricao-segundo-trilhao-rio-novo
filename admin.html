@@ -274,6 +274,49 @@
             }
         });
 
+        /**
+         * Mesma lista que a tabela: filtro da busca + ordenação do select.
+         * Usada por loadData e exportPDF para manter comportamento idêntico.
+         */
+        function applySearchFilterAndSort(registrations) {
+            let viewList = registrations.map((reg) => ({ reg }));
+
+            const searchInput = document.getElementById('search-input');
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            if (query) {
+                viewList = viewList.filter(({ reg }) => {
+                    return (reg.name && reg.name.toLowerCase().includes(query)) ||
+                           (reg.cpf && reg.cpf.toLowerCase().includes(query)) ||
+                           (reg.zeca_name && reg.zeca_name.toLowerCase().includes(query)) ||
+                           (reg.zeca_cpf && reg.zeca_cpf.toLowerCase().includes(query));
+                });
+            }
+
+            const sortOption = document.getElementById('sort-select') ? document.getElementById('sort-select').value : 'date-desc';
+            viewList.sort((a, b) => {
+                const dateA = new Date(a.reg.created_at).getTime();
+                const dateB = new Date(b.reg.created_at).getTime();
+                if (sortOption === 'name-asc') {
+                    return a.reg.name.localeCompare(b.reg.name, 'pt-BR');
+                }
+                if (sortOption === 'name-desc') {
+                    return b.reg.name.localeCompare(a.reg.name, 'pt-BR');
+                }
+                if (sortOption === 'date-asc') {
+                    return dateA - dateB;
+                }
+                return dateB - dateA;
+            });
+
+            return viewList.map(({ reg }) => reg);
+        }
+
+        function sortOptionLabel() {
+            const sel = document.getElementById('sort-select');
+            if (!sel || !sel.options[sel.selectedIndex]) return '';
+            return sel.options[sel.selectedIndex].text.replace(/^Ordem:\s*/i, '').trim();
+        }
+
         // Render Table Data
         async function loadData() {
             const tbody = document.getElementById('table-body');
@@ -300,27 +343,13 @@
                 return;
             }
 
-            // Wrap in array for rendering loop
-            let viewList = registrations.map((reg) => ({ reg }));
+            const filteredSorted = applySearchFilterAndSort(registrations);
 
-            // Apply Search Filtering
-            const searchInput = document.getElementById('search-input');
-            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-            if (query) {
-                viewList = viewList.filter(({ reg }) => {
-                    return (reg.name && reg.name.toLowerCase().includes(query)) ||
-                           (reg.cpf && reg.cpf.toLowerCase().includes(query)) ||
-                           (reg.zeca_name && reg.zeca_name.toLowerCase().includes(query)) ||
-                           (reg.zeca_cpf && reg.zeca_cpf.toLowerCase().includes(query));
-                });
-            }
+            document.getElementById('total-count').textContent = filteredSorted.length;
 
-            document.getElementById('total-count').textContent = viewList.length;
-
-            if (viewList.length === 0) {
+            if (filteredSorted.length === 0) {
                 emptyState.classList.remove('hidden');
                 tbody.innerHTML = '';
-                // Update empty message contextually if searching vs no data natively
                 if (registrations.length > 0) {
                     emptyState.querySelector('p.text-lg').textContent = 'Nenhum resultado encontrado na busca.';
                     emptyState.querySelector('p.text-sm').textContent = 'Tente pesquisar com outro termo ou limpe a lupa.';
@@ -334,26 +363,8 @@
 
             emptyState.classList.add('hidden');
             tbody.innerHTML = '';
-            
-            const sortOption = document.getElementById('sort-select') ? document.getElementById('sort-select').value : 'date-desc';
-            
-            viewList.sort((a, b) => {
-                const dateA = new Date(a.reg.created_at).getTime();
-                const dateB = new Date(b.reg.created_at).getTime();
-                if (sortOption === 'name-asc') {
-                    return a.reg.name.localeCompare(b.reg.name);
-                } else if (sortOption === 'name-desc') {
-                    return b.reg.name.localeCompare(a.reg.name);
-                } else if (sortOption === 'date-asc') {
-                    return dateA - dateB;
-                } else {
-                    // date-desc
-                    return dateB - dateA;
-                }
-            });
 
-            // Render based on selected sorting
-            viewList.forEach(({ reg }) => {
+            filteredSorted.forEach((reg) => {
                 const dateObj = new Date(reg.created_at);
                 const formatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 const dateStr = formatter.format(dateObj);
@@ -445,7 +456,7 @@
             }
         }
 
-        // PDF Export Helper
+        // PDF Export Helper (mesma ordem e filtro da tabela)
         async function exportPDF() {
             let registrations = [];
             try {
@@ -455,20 +466,30 @@
                 if(res.ok) registrations = await res.json();
             } catch(e) { return alert('Falha ao exportar da nuvem.'); }
 
+            const toExport = applySearchFilterAndSort(registrations);
+
             if (registrations.length === 0) return alert('Nenhum dado cadastrado na nuvem para gerar PDF.');
-            
+            if (toExport.length === 0) return alert('Nenhum registro para exportar com a busca atual. Limpe o filtro ou ajuste o termo.');
+
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('landscape');
             
             doc.setFontSize(16);
             doc.text("Relatorio de Inscritos - 2o Trilhao Rio Novo", 14, 15);
             doc.setFontSize(10);
-            doc.text(`Total de inscricoes registradas: ${registrations.length}`, 14, 22);
-            
+            let metaY = 22;
+            doc.text(`Total neste relatorio: ${toExport.length} (ordenacao: ${sortOptionLabel()})`, 14, metaY);
+            const searchQ = document.getElementById('search-input')?.value.trim();
+            if (searchQ) {
+                metaY += 6;
+                doc.text(`Filtro de busca: "${searchQ}"`, 14, metaY);
+            }
+            const tableStartY = metaY + 6;
+
             const tableColumn = ["Inscrito(s)", "CPF", "Tipo", "Valor", "Status Pagamento", "Data"];
             const tableRows = [];
 
-            registrations.forEach(reg => {
+            toExport.forEach(reg => {
                 const typeText = reg.type || 'Padrão';
                 let priceValue = '120';
                 if(typeText === 'Piloto') priceValue = '200';
@@ -486,7 +507,7 @@
             doc.autoTable({
                 head: [tableColumn],
                 body: tableRows,
-                startY: 28,
+                startY: tableStartY,
                 theme: 'grid',
                 styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
                 headStyles: { fillColor: [249, 115, 22] } // accent orange
