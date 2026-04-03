@@ -117,6 +117,11 @@
                             <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"></i>
                         </div>
 
+                        <button id="refresh-list-btn" onclick="loadData()" class="w-full sm:w-auto bg-zinc-900 border border-zinc-800 text-sm font-medium text-zinc-300 rounded-xl py-2.5 px-4 hover:border-zinc-700 hover:text-zinc-100 transition-all shadow-sm flex items-center justify-center gap-2 shrink-0">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            Atualizar
+                        </button>
+
                         <div class="bg-zinc-900 border border-zinc-800 py-2 px-4 rounded-xl flex items-center justify-between sm:justify-center w-full sm:w-auto gap-3 shrink-0 shadow-sm">
                             <span class="text-zinc-400 text-sm font-medium">Inscrições:</span>
                             <span id="total-count" class="text-accent font-black text-xl bg-accent/10 px-3 py-0.5 rounded-lg border border-accent/20">0</span>
@@ -319,119 +324,140 @@
 
         // Render Table Data
         async function loadData() {
+            const refreshBtn = document.getElementById('refresh-list-btn');
+            const originalRefreshInner = refreshBtn ? refreshBtn.innerHTML : null;
+            const originalRefreshDisabled = refreshBtn ? refreshBtn.disabled : false;
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.innerHTML = `
+                    <svg class="animate-spin h-4 w-4 text-zinc-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    Atualizando...
+                `;
+            }
+
             const tbody = document.getElementById('table-body');
             const emptyState = document.getElementById('empty-state');
             let registrations = [];
-            
+
             try {
-                const res = await fetch(`${window.apiURL}/registrations`, {
-                    headers: { 'Authorization': 'Bearer ' + window.authToken }
-                });
-                if (!res.ok) {
-                    if (res.status === 403) {
-                        alert('Senha incorreta! Acesso negado pela nuvem.');
-                        location.reload();
+                try {
+                    const res = await fetch(`${window.apiURL}/registrations`, {
+                        headers: { 'Authorization': 'Bearer ' + window.authToken }
+                    });
+                    if (!res.ok) {
+                        if (res.status === 403) {
+                            alert('Senha incorreta! Acesso negado pela nuvem.');
+                            location.reload();
+                        }
+                        throw new Error('Falha ao buscar dados');
                     }
-                    throw new Error('Falha ao buscar dados');
+                    registrations = await res.json();
+                } catch (err) {
+                    console.error(err);
+                    emptyState.querySelector('p.text-lg').textContent = 'Erro ao conectar no banco do Render.';
+                    emptyState.querySelector('p.text-sm').textContent = 'Se a API hibernou, espere 50s e tente de novo.';
+                    emptyState.classList.remove('hidden');
+                    return;
                 }
-                registrations = await res.json();
-            } catch (err) {
-                console.error(err);
-                emptyState.querySelector('p.text-lg').textContent = 'Erro ao conectar no banco do Render.';
-                emptyState.querySelector('p.text-sm').textContent = 'Se a API hibernou, espere 50s e tente de novo.';
-                emptyState.classList.remove('hidden');
-                return;
-            }
 
-            const filteredSorted = applySearchFilterAndSort(registrations);
+                const filteredSorted = applySearchFilterAndSort(registrations);
 
-            document.getElementById('total-count').textContent = filteredSorted.length;
+                document.getElementById('total-count').textContent = filteredSorted.length;
 
-            if (filteredSorted.length === 0) {
-                emptyState.classList.remove('hidden');
+                if (filteredSorted.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    tbody.innerHTML = '';
+                    if (registrations.length > 0) {
+                        emptyState.querySelector('p.text-lg').textContent = 'Nenhum resultado encontrado na busca.';
+                        emptyState.querySelector('p.text-sm').textContent = 'Tente pesquisar com outro termo ou limpe a lupa.';
+                    } else {
+                        emptyState.querySelector('p.text-lg').textContent = 'Nenhuma inscrição registrada no banco ainda.';
+                        emptyState.querySelector('p.text-sm').textContent = 'As novas inscrições preenchidas no formulário vão aparecer aqui magicamente.';
+                    }
+                    lucide.createIcons();
+                    return;
+                }
+
+                emptyState.classList.add('hidden');
                 tbody.innerHTML = '';
-                if (registrations.length > 0) {
-                    emptyState.querySelector('p.text-lg').textContent = 'Nenhum resultado encontrado na busca.';
-                    emptyState.querySelector('p.text-sm').textContent = 'Tente pesquisar com outro termo ou limpe a lupa.';
-                } else {
-                    emptyState.querySelector('p.text-lg').textContent = 'Nenhuma inscrição registrada no banco ainda.';
-                    emptyState.querySelector('p.text-sm').textContent = 'As novas inscrições preenchidas no formulário vão aparecer aqui magicamente.';
-                }
+
+                filteredSorted.forEach((reg) => {
+                    const dateObj = new Date(reg.created_at);
+                    const formatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    const dateStr = formatter.format(dateObj);
+
+                    const typeText = reg.type || 'Padrão';
+                    
+                    let typeStyle = 'text-accent border-accent/20 bg-accent/10';
+                    let priceValue = 'R$ 200';
+                    let displayedName = reg.name;
+                    let displayedCpf = reg.cpf;
+                    
+                    if (typeText === 'Zeca') {
+                        typeStyle = 'text-blue-400 border-blue-400/20 bg-blue-400/10';
+                        priceValue = 'R$ 120';
+                    } else if (typeText === 'Combo') {
+                        typeStyle = 'text-purple-400 border-purple-400/20 bg-purple-400/10';
+                        priceValue = 'R$ 320';
+                        displayedName = `
+                            <div class="flex flex-col gap-1 min-w-max">
+                                <span class="flex items-center gap-1.5 text-zinc-200"><i data-lucide="car-front" class="w-3.5 h-3.5 text-accent opacity-80"></i> ${reg.name}</span>
+                                <span class="flex items-center gap-1.5 text-zinc-400 text-xs mt-1.5"><i data-lucide="user" class="w-3.5 h-3.5 text-blue-400 opacity-80"></i> ${reg.zeca_name}</span>
+                            </div>
+                        `;
+                        displayedCpf = `
+                            <div class="flex flex-col gap-1 min-w-max">
+                                <span class="text-zinc-300 font-mono">${reg.cpf}</span>
+                                <span class="text-zinc-500 font-mono text-xs mt-1.5">${reg.zeca_cpf}</span>
+                            </div>
+                        `;
+                    }
+
+                    const isPaid = reg.paid === true;
+                    const paidText = isPaid ? 'Pago' : 'Pendente';
+                    const paidBtnClass = isPaid ? 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20 hover:text-red-300';
+                    const paidIcon = isPaid ? 'check-circle' : 'circle';
+                    
+                    let paidDateHtml = '';
+                    if (isPaid && reg.paid_date) {
+                        const pdObj = new Date(reg.paid_date);
+                        const pdFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+                        paidDateHtml = `<div class="text-[10px] text-green-500/70 mt-1.5 whitespace-nowrap hidden sm:block">${pdFormatter.format(pdObj)}</div>`;
+                    }
+                    
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-zinc-800/30 transition-colors group';
+                    row.innerHTML = `
+                        <td class="px-6 py-4 font-medium text-white group-hover:text-accent transition-colors whitespace-nowrap">
+                            ${displayedName}
+                        </td>
+                        <td class="px-6 py-4 text-zinc-300 font-mono text-sm">${displayedCpf}</td>
+                        <td class="px-6 py-4"><span class="px-2.5 py-1 text-xs font-bold rounded-lg border ${typeStyle} whitespace-nowrap">${typeText}</span></td>
+                        <td class="px-6 py-4 text-zinc-300 font-medium whitespace-nowrap">${priceValue}</td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <button onclick="togglePayment(${reg.id}, ${isPaid})" class="px-3 py-1 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 ${paidBtnClass}">
+                                    <i data-lucide="${paidIcon}" class="w-3.5 h-3.5"></i> ${paidText}
+                                </button>
+                                ${paidDateHtml}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-zinc-500 text-xs border-l border-zinc-700/50">${dateStr}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                // Renderizar icones Lucide criados dinamicamente
                 lucide.createIcons();
-                return;
+            } finally {
+                if (refreshBtn) {
+                    refreshBtn.disabled = originalRefreshDisabled;
+                    refreshBtn.innerHTML = originalRefreshInner ?? refreshBtn.innerHTML;
+                }
             }
-
-            emptyState.classList.add('hidden');
-            tbody.innerHTML = '';
-
-            filteredSorted.forEach((reg) => {
-                const dateObj = new Date(reg.created_at);
-                const formatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                const dateStr = formatter.format(dateObj);
-
-                const typeText = reg.type || 'Padrão';
-                
-                let typeStyle = 'text-accent border-accent/20 bg-accent/10';
-                let priceValue = 'R$ 200';
-                let displayedName = reg.name;
-                let displayedCpf = reg.cpf;
-                
-                if (typeText === 'Zeca') {
-                    typeStyle = 'text-blue-400 border-blue-400/20 bg-blue-400/10';
-                    priceValue = 'R$ 120';
-                } else if (typeText === 'Combo') {
-                    typeStyle = 'text-purple-400 border-purple-400/20 bg-purple-400/10';
-                    priceValue = 'R$ 320';
-                    displayedName = `
-                        <div class="flex flex-col gap-1 min-w-max">
-                            <span class="flex items-center gap-1.5 text-zinc-200"><i data-lucide="car-front" class="w-3.5 h-3.5 text-accent opacity-80"></i> ${reg.name}</span>
-                            <span class="flex items-center gap-1.5 text-zinc-400 text-xs mt-1.5"><i data-lucide="user" class="w-3.5 h-3.5 text-blue-400 opacity-80"></i> ${reg.zeca_name}</span>
-                        </div>
-                    `;
-                    displayedCpf = `
-                        <div class="flex flex-col gap-1 min-w-max">
-                            <span class="text-zinc-300 font-mono">${reg.cpf}</span>
-                            <span class="text-zinc-500 font-mono text-xs mt-1.5">${reg.zeca_cpf}</span>
-                        </div>
-                    `;
-                }
-
-                const isPaid = reg.paid === true;
-                const paidText = isPaid ? 'Pago' : 'Pendente';
-                const paidBtnClass = isPaid ? 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20 hover:text-red-300';
-                const paidIcon = isPaid ? 'check-circle' : 'circle';
-                
-                let paidDateHtml = '';
-                if (isPaid && reg.paid_date) {
-                    const pdObj = new Date(reg.paid_date);
-                    const pdFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
-                    paidDateHtml = `<div class="text-[10px] text-green-500/70 mt-1.5 whitespace-nowrap hidden sm:block">${pdFormatter.format(pdObj)}</div>`;
-                }
-                
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-zinc-800/30 transition-colors group';
-                row.innerHTML = `
-                    <td class="px-6 py-4 font-medium text-white group-hover:text-accent transition-colors whitespace-nowrap">
-                        ${displayedName}
-                    </td>
-                    <td class="px-6 py-4 text-zinc-300 font-mono text-sm">${displayedCpf}</td>
-                    <td class="px-6 py-4"><span class="px-2.5 py-1 text-xs font-bold rounded-lg border ${typeStyle} whitespace-nowrap">${typeText}</span></td>
-                    <td class="px-6 py-4 text-zinc-300 font-medium whitespace-nowrap">${priceValue}</td>
-                    <td class="px-6 py-4 text-center">
-                        <div class="flex flex-col items-center justify-center">
-                            <button onclick="togglePayment(${reg.id}, ${isPaid})" class="px-3 py-1 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 ${paidBtnClass}">
-                                <i data-lucide="${paidIcon}" class="w-3.5 h-3.5"></i> ${paidText}
-                            </button>
-                            ${paidDateHtml}
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 text-zinc-500 text-xs border-l border-zinc-700/50">${dateStr}</td>
-                `;
-                tbody.appendChild(row);
-            });
-            
-            // Renderizar icones Lucide criados dinamicamente
-            lucide.createIcons();
         }
 
         // Action: Toggle Payment
