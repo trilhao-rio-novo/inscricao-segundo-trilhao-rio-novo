@@ -269,12 +269,20 @@
             <div class="bg-zinc-950/80 p-4 rounded-xl text-left border border-zinc-800 mb-6 space-y-4">
                 <div>
                     <span class="text-xs text-zinc-500 block mb-1">Chave Pix (CPF)</span>
-                    <div class="flex items-center justify-between">
-                        <span class="font-mono text-zinc-200 font-bold text-lg tracking-wider">11966019986</span>
-                        <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs transition-all" onclick="navigator.clipboard.writeText('11966019986'); var t2=this; var o2=t2.innerHTML; t2.innerHTML='<i data-lucide=\'check-circle-2\' class=\'w-3 h-3 text-green-500\'></i> Copiado!'; lucide.createIcons(); setTimeout(()=>t2.innerHTML=o2, 2000);">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-mono text-zinc-200 font-bold text-lg tracking-wider">11965019986</span>
+                        <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs transition-all shrink-0" onclick="navigator.clipboard.writeText('11965019986'); var t2=this; var o2=t2.innerHTML; t2.innerHTML='<i data-lucide=\'check-circle-2\' class=\'w-3 h-3 text-green-500\'></i> Copiado!'; lucide.createIcons(); setTimeout(()=>t2.innerHTML=o2, 2000);">
                             <i data-lucide="copy" class="w-3 h-3"></i> Copiar
                         </button>
                     </div>
+                </div>
+                <div class="pt-3 border-t border-zinc-800">
+                    <span class="text-xs text-zinc-500 block mb-1">Nome (como aparece no Pix)</span>
+                    <span class="text-zinc-200 font-semibold">Marcelo Ascari Dorregão</span>
+                </div>
+                <div class="pt-3 border-t border-zinc-800">
+                    <span class="text-xs text-zinc-500 block mb-1">Instituição</span>
+                    <span class="text-zinc-200 font-semibold">Nubank</span>
                 </div>
             </div>
 
@@ -295,22 +303,32 @@
                 <h3 class="font-bold text-white mb-4 flex items-center gap-2 relative z-10"><i data-lucide="qr-code"
                         class="w-5 h-5 text-accent"></i> Pagamento via Pix</h3>
                 <div class="relative z-10 space-y-4">
-                    <div class="bg-zinc-950/80 p-3 rounded-xl flex justify-between items-center border border-zinc-800">
-                        <div>
-                            <span class="text-xs text-zinc-500 block mb-0.5">Chave CPF</span>
-                            <span class="font-mono text-zinc-200 font-bold tracking-wider">11966019986</span>
+                    <div class="bg-zinc-950/80 p-4 rounded-xl border border-zinc-800 space-y-4">
+                        <div class="flex justify-between items-start gap-2">
+                            <div class="min-w-0">
+                                <span class="text-xs text-zinc-500 block mb-0.5">Chave Pix (CPF)</span>
+                                <span class="font-mono text-zinc-200 font-bold tracking-wider">11965019986</span>
+                            </div>
+                            <button type="button"
+                                class="btn-secondary px-3 py-1.5 flex items-center gap-1.5 text-xs h-min transition-all shrink-0"
+                                onclick="navigator.clipboard.writeText('11965019986'); var t1=this; var o1=t1.innerHTML; t1.innerHTML='<i data-lucide=\'check-circle-2\' class=\'w-3 h-3 text-green-500\'></i> Copiado!'; lucide.createIcons(); setTimeout(()=>t1.innerHTML=o1, 2000);">
+                                <i data-lucide="copy" class="w-3 h-3"></i> Copiar
+                            </button>
                         </div>
-                        <button type="button"
-                            class="btn-secondary px-3 py-1.5 flex items-center gap-1.5 text-xs h-min transition-all"
-                            onclick="navigator.clipboard.writeText('11966019986'); var t1=this; var o1=t1.innerHTML; t1.innerHTML='<i data-lucide=\'check-circle-2\' class=\'w-3 h-3 text-green-500\'></i> Copiado!'; lucide.createIcons(); setTimeout(()=>t1.innerHTML=o1, 2000);">
-                            <i data-lucide="copy" class="w-3 h-3"></i> Copiar
-                        </button>
+                        <div class="pt-3 border-t border-zinc-800">
+                            <span class="text-xs text-zinc-500 block mb-0.5">Nome (como aparece no Pix)</span>
+                            <span class="text-zinc-200 font-semibold">Marcelo Ascari Dorregão</span>
+                        </div>
+                        <div class="pt-3 border-t border-zinc-800">
+                            <span class="text-xs text-zinc-500 block mb-0.5">Instituição</span>
+                            <span class="text-zinc-200 font-semibold">Nubank</span>
+                        </div>
                     </div>
 
                     <div class="flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl">
                         <i data-lucide="info" class="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5"></i>
                         <p class="text-zinc-400 text-xs leading-relaxed">
-                            Pagamento recebido até o dia <strong class="text-zinc-200 font-bold">14/05</strong>. É
+                            Antes de confirmar, confira se o <strong class="text-zinc-200">nome</strong> e a <strong class="text-zinc-200">instituição</strong> batem com os dados acima. Pagamento recebido até o dia <strong class="text-zinc-200 font-bold">14/05</strong>. É
                             obrigatório o envio do comprovante para validar a inscrição!
                         </p>
                     </div>
